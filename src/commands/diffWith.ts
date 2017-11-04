@@ -90,11 +90,16 @@ export class DiffWithCommand extends ActiveEditorCommand {
         if (args.repoPath === undefined || args.lhs === undefined || args.rhs === undefined) return undefined;
 
         try {
+            const lhsIsStagedUncommitted = GitService.isStagedUncommitted(args.lhs.sha);
+            const rhsIsStagedUncommitted = GitService.isStagedUncommitted(args.rhs.sha);
+            const lhsIsUncommitted = lhsIsStagedUncommitted || GitService.isUncommitted(args.lhs.sha);
+            const rhsIsUncommitted = rhsIsStagedUncommitted || GitService.isUncommitted(args.rhs.sha);
+
             const [lhs, rhs] = await Promise.all([
-                args.lhs.sha !== '' && !GitService.isUncommitted(args.lhs.sha)
+                args.lhs.sha !== '' && (lhsIsStagedUncommitted || !lhsIsUncommitted)
                     ? this.git.getVersionedFile(args.repoPath, args.lhs.uri.fsPath, args.lhs.sha)
                     : args.lhs.uri.fsPath,
-                args.rhs.sha !== '' && !GitService.isUncommitted(args.rhs.sha)
+                args.rhs.sha !== '' && (rhsIsStagedUncommitted || !rhsIsUncommitted)
                     ? this.git.getVersionedFile(args.repoPath, args.rhs.uri.fsPath, args.rhs.sha)
                     : args.rhs.uri.fsPath
             ]);
@@ -115,14 +120,14 @@ export class DiffWithCommand extends ActiveEditorCommand {
             }
 
             if (args.lhs.title === undefined && lhs !== undefined && args.lhs.sha !== GitService.deletedSha) {
-                args.lhs.title = (args.lhs.sha === '' || GitService.isUncommitted(args.lhs.sha))
+                args.lhs.title = (args.lhs.sha === '' || (!lhsIsStagedUncommitted && lhsIsUncommitted))
                     ? `${path.basename(args.lhs.uri.fsPath)}`
-                    : `${path.basename(args.lhs.uri.fsPath)} (${GitService.shortenSha(args.lhs.sha)})`;
+                    : `${path.basename(args.lhs.uri.fsPath)} (${lhsIsStagedUncommitted ? 'index' : GitService.shortenSha(args.lhs.sha)})`;
             }
             if (args.rhs.title === undefined && args.rhs.sha !== GitService.deletedSha) {
-                args.rhs.title = (args.rhs.sha === '' || GitService.isUncommitted(args.rhs.sha))
+                args.rhs.title = (args.rhs.sha === '' || (!rhsIsStagedUncommitted && rhsIsUncommitted))
                     ? `${path.basename(args.rhs.uri.fsPath)}`
-                    : `${path.basename(args.rhs.uri.fsPath)} (${rhsPrefix}${GitService.shortenSha(args.rhs.sha)})`;
+                    : `${path.basename(args.rhs.uri.fsPath)} (${rhsPrefix}${rhsIsStagedUncommitted ? 'index' : GitService.shortenSha(args.rhs.sha)})`;
             }
 
             const title = (args.lhs.title !== undefined && args.rhs.title !== undefined)

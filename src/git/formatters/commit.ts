@@ -39,7 +39,9 @@ export class CommitFormatter extends Formatter<GitCommit, ICommitFormatOptions> 
     }
 
     get id() {
-        return this._item.isUncommitted ? 'index' : this._item.shortSha;
+        if (this._item.isStagedUncommitted) return 'index';
+        if (this._item.isUncommitted) return 'working tree'; // TODO: Shouldn't this be working tree or something?
+        return this._item.shortSha;
     }
 
     get message() {

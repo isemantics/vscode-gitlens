@@ -112,7 +112,8 @@ function gitCommandDefaultErrorHandler(ex: Error, options: GitCommandOptions, ..
 export class Git {
 
     static shaRegex = /^[0-9a-f]{40}(\^[0-9]*?)??( -)?$/;
-    static uncommittedRegex = /^[0]{40}(\^[0-9]*?)??$/;
+    static stagedUncommittedRegex = /^[0]{40}(\^[0-9]*?)??:$/;
+    static uncommittedRegex = /^[0]{40}(\^[0-9]*?)??:??$/;
 
     static gitInfo(): IGit {
         return git;
@@ -159,6 +160,10 @@ export class Git {
 
     static isSha(sha: string) {
         return Git.shaRegex.test(sha);
+    }
+
+    static isStagedUncommitted(sha: string): boolean {
+        return Git.stagedUncommittedRegex.test(sha);
     }
 
     static isUncommitted(sha: string) {
@@ -426,7 +431,10 @@ export class Git {
         if (Git.isUncommitted(branchOrSha)) throw new Error(`sha=${branchOrSha} is uncommitted`);
 
         const opts = { cwd: root, encoding: options.encoding || 'utf8', willHandleErrors: true } as GitCommandOptions;
-        const args = `${branchOrSha}:./${file}`;
+        const args = branchOrSha.endsWith(':')
+            ? `${branchOrSha}./${file}`
+            : `${branchOrSha}:./${file}`;
+
         try {
             const data = await gitCommand(opts, 'show', args);
             return data;

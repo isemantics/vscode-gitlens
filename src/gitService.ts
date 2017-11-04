@@ -82,6 +82,7 @@ export class GitService extends Disposable {
 
     static emptyPromise: Promise<GitBlame | GitDiff | GitLog | undefined> = Promise.resolve(undefined);
     static deletedSha = 'ffffffffffffffffffffffffffffffffffffffff';
+    static stagedSha = '0000000000000000000000000000000000000000:';
     static uncommittedSha = '0000000000000000000000000000000000000000';
 
     config: IConfig;
@@ -992,11 +993,13 @@ export class GitService extends Disposable {
     async getVersionedFile(repoPath: string | undefined, fileName: string, sha: string) {
         Logger.log(`getVersionedFile('${repoPath}', '${fileName}', '${sha}')`);
 
-        const file = await Git.getVersionedFile(repoPath, fileName, sha);
+        const staged = GitService.isStagedUncommitted(sha);
+
+        const file = await Git.getVersionedFile(repoPath, fileName, staged ? ':' : sha);
         if (file === undefined) return undefined;
 
         const cacheKey = this.getCacheEntryKey(file);
-        const entry = new UriCacheEntry(new GitUri(Uri.file(fileName), { sha, repoPath: repoPath!, fileName }));
+        const entry = new UriCacheEntry(new GitUri(Uri.file(fileName), { sha: staged ? 'HEAD' : sha, repoPath: repoPath!, fileName }));
         this._versionedUriCache.set(cacheKey, entry);
         return file;
     }
@@ -1148,6 +1151,10 @@ export class GitService extends Disposable {
 
     static isSha(sha: string): boolean {
         return Git.isSha(sha);
+    }
+
+    static isStagedUncommitted(sha: string): boolean {
+        return Git.isStagedUncommitted(sha);
     }
 
     static isUncommitted(sha: string): boolean {
